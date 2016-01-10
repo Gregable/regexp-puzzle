@@ -1,0 +1,591 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Gregable.com: Regular Expression Crossword Puzzle</title>
+<meta name="viewport" content="width=device-width,minimum-scale=1">
+<link rel="canonical" href="http://gregable.com/2015/12/regular-expression-crossword-puzzle.html">
+<link rel="prerender" href="http://gregable.com/2015/12/regular-expression-crossword-puzzle.html">
+<link rel="author" href="http://gregable.com/">
+<style>
+hextable {
+  margin-top: 200px;
+  margin-left: 20px;
+  display: inline-block;
+  transform-origin: 390px 230px;
+  transition-property: all;
+  transition-duration: 2s;
+}
+hexrow {
+  position: relative;
+  display: block;
+  font-size: 0px;
+  margin-bottom: 11.54px;
+  white-space: nowrap;
+  text-align: left;
+}
+hexcol {
+  display: inline-block;
+  width: 39px;
+  height: 23.09px;
+  margin: 0px;
+  border-left: 1px solid black;
+  font-size: 18px;
+  text-align: center;
+}
+hexcol.right {
+  border-right: 1px solid black;
+}
+hexcol::before {
+  display: block;
+  content: '';
+  position: absolute;
+  height: 23.09px;
+  width: 23.09px;
+  transform-origin: top left;
+  transform: translate(19.5px, -12px) rotate(60deg) skewY(-30deg) scaleX(.866);
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+hexcol.bottomleft::after {
+  display: block;
+  content: '';
+  position: absolute;
+  height: 24px;
+  width: 24px;
+  transform-origin: top left;
+  transform: translate(19.5px, 12px) rotate(240deg) skewY(-30deg) scaleX(.866);
+  border-top: 1px solid;
+}
+hexcol.bottomright::after {
+  display: block;
+  content: '';
+  position: absolute;
+  height: 24px;
+  width: 24px;
+  transform-origin: top left;
+  transform: translate(19.5px, 12px) rotate(240deg) skewY(-30deg) scaleX(.866);
+  border-left: 1px solid;
+}
+hexcol.bottom::after {
+  display: block;
+  content: '';
+  position: absolute;
+  height: 23.09px;
+  width: 23.09px;
+  transform-origin: top left;
+  transform: translate(19.5px, 12px) rotate(240deg) skewY(-30deg) scaleX(.866);
+  border-top: 1px solid;
+  border-left: 1px solid;
+}
+
+rowlabel {
+  display: inline-block;
+  height: 23.09px;
+  margin: 0px;
+  padding-right: 6px;
+  left: 0;
+  font-size: 18px;
+  text-align: right
+}
+toplabelrow {
+  position: relative;
+  display: block;
+  font-size: 0px;
+  margin-bottom: 11.54px;
+  white-space: nowrap;
+  text-align: left;
+}
+toplabelrow span {
+  display: inline-block;
+  position: absolute;
+  padding-right: 6px;
+  font-size: 18px;
+  transform-origin: bottom right;
+  transform: translateY(-20px) rotate(120deg);
+  text-align: right;
+}
+bottomlabelrow {
+  position: relative;
+  display: block;
+  font-size: 0px;
+  margin-bottom: 11.54px;
+  white-space: nowrap;
+  text-align: left;
+}
+label240a {
+  display: inline-block;
+  position: absolute;
+  padding-right: 6px;
+  font-size: 18px;
+  height: 23.09px;
+  transform-origin: top right;
+  transform: rotate(240deg);
+  text-align: right;
+}
+label240b {
+  display: inline-block;
+  position: absolute;
+  padding-right: 6px;
+  font-size: 18px;
+  height: 23.09px;
+  transform-origin: top right;
+  transform: translateX(-1px) translateX(-100%) rotate(240deg);
+  text-align: left;
+}
+label120 {
+  display: inline-block;
+  position: absolute;
+  padding-right: 6px;
+  font-size: 18px;
+  height: 23.09px;
+  transform-origin: top right;
+  transform: translateX(-1px) translateX(-100%) rotate(120deg);
+  text-align: left;
+}
+.successlabel {
+  color: green;
+}
+.faillabel {
+  color: red;
+}
+.label {
+  color: black;
+}
+
+
+input {
+  width:12px;
+  height: 23.09px;
+  border: 0px;
+  padding: 0px;
+  margin: 0px;
+  text-transform: uppercase;
+  transition-property: all;
+  transition-duration: 2s;
+}
+hextable.rotation120 input {
+  transform: rotate(-120deg);
+}
+hextable.rotation240 input {
+  transform: rotate(-240deg);
+}
+a.button {
+  text-decoration: none;
+  font-size: 48px;
+}
+</style>
+<script>
+
+labelsById = {};
+
+function init() {
+  var inputElements = document.getElementsByTagName('input');
+  for (var i = 0; i < inputElements.length; i++) {
+    inputElements[i].maxLength = 1;
+    // Make every input box select it's contents on focus.
+    inputElements[i].onfocus = inputFocus;
+    // Make every input box reselect when the user changes input.
+    inputElements[i].onkeyup = function() {
+      this.select();
+      updateLabels(this.id);
+    }
+  }
+  
+  var labelElements = document.getElementsByClassName('label');
+  for (var i = 0; i < labelElements.length; i++) {
+    labelsById[labelElements[i].id] = labelElements[i];
+  }
+}
+
+var lastFocusedElement = null;
+function inputFocus() {
+  // On focus, select all contents, so user can just type.
+  this.select();
+  // Remember which element was last focused, so we can restore
+  // in the event of a rotation.
+  lastFocusedElement = this;
+}
+
+function updateLabels(hexId) {
+  window.onbeforeunload = confirmOnPageExit;
+  var labelIds = labelsToUpdate(hexId);  
+  for (var i = 0; i < labelIds.length; i++) {
+    var label = document.getElementById(labelIds[i]);
+    updateLabel(label);
+  }
+}
+
+function updateLabel(label) {
+  var id = label.id;
+  var regex = new RegExp('^' + label.textContent + '$');
+  var components = id.split('-');
+  var type = components[0];
+  var num = components[1];
+
+  var toMatch = "";
+  if (type === 'c') {
+    for (var i = 0; i < 100; i++) {
+      var hexcell = document.getElementById('hex-' + num + '-' + i);
+      if (hexcell === null)
+        break;
+      if (hexcell.value === '') {
+  	label.className = 'label';
+        return;
+      }
+      toMatch += hexcell.value;
+    }
+  } else if (type === 'a') {
+    for (var i = 0; i < 100; i++) {
+      var row = i + Math.max(0, num - 6);
+      var col = num - Math.max(0, row - 6);
+      var hexcell = document.getElementById('hex-' + row + '-' + col);
+      if (hexcell === null)
+        break;
+      if (hexcell.value === '') {
+  	label.className = 'label';
+        return;
+      }
+      toMatch += hexcell.value;
+    }
+  } else {  // 'b'
+    for (var i = 0; i < 19 - num; i++) {
+      var row = Math.min(num, 6) + 6 - i;
+      var col = 12 - num + Math.min(row, 6) - 6;
+      var hexcell = document.getElementById('hex-' + row + '-' + col);
+      if (hexcell === null)
+        break;
+      if (hexcell.value === '') {
+  	label.className = 'label';
+        return;
+      }
+      toMatch += hexcell.value;
+    }
+  }
+
+  
+  if (regex.test(toMatch.toUpperCase()))
+    label.className = 'successlabel';
+  else
+    label.className = 'faillabel';
+}
+
+
+function labelsToUpdate(hexId) {
+  var components = hexId.split('-');
+  var row = Number(components[1]);
+  var col = Number(components[2]);
+
+  var labels = [];
+  labels.push('a-' + (col + Math.max(0, row - 6)));
+  labels.push('c-' + row);
+  labels.push('b-' + (row - col + 6 - Math.max(0, row - 6)));
+
+  return labels;
+}
+
+var deg = 0;
+function updateToNewRotation() {
+  var hextable = document.getElementsByTagName('hextable')[0];
+  hextable.style.transform = ("rotate(" + deg + "deg)");
+  // Some weird modulo arithmetic to handle the fact that deg can go negative.
+  hextable.className = 'rotation' + (((deg % 360) + 360) % 360);
+
+  // Restore focus to help user track after rotation.
+  if (lastFocusedElement !== null) {
+    lastFocusedElement.focus(); 
+    lastFocusedElement.select();
+  }
+}
+function rotateClockwise() {
+  deg += 120;
+  updateToNewRotation();
+}
+function rotateCounter() {
+  deg -= 120;
+  updateToNewRotation();
+}
+
+function confirmOnPageExit(e) {
+  // If we haven't been passed the event get the window.event
+  e = e || window.event;
+  var message = 'Are you sure you want to leave, any progress will be lost';
+  if (e) {
+    e.returnValue = message;
+  }
+
+  return message;
+}
+
+function catchKeyDown(e) {
+  // If we haven't been passed the event get the window.event
+  e = e || window.event;
+  if (e.keyCode === 37)	 // left arrow key
+    rotateCounter();
+  if (e.keyCode === 39)  // right arrow key
+    rotateClockwise();
+}
+
+</script>
+</head>
+<body onLoad="init()" onKeyDown="catchKeyDown()">
+<h1 style="float:left">Regexp Puzzle</h1>
+<div style="width: 800px; text-align: center">
+<a href="javascript:rotateCounter()" class=button>&#8634;</a>
+<a href="javascript:rotateClockwise()" class=button>&#8635;</a>
+</div>
+
+<hextable>
+  <toplabelrow>
+    <span style="width: 275px" class=label id=a-0>(ND|ET|IN)[^X]*</span>
+    <span style="width: 315px" class=label id=a-1>[CHMNOR]*I[CHMNOR]*</span>
+    <span style="width: 355px" class=label id=a-2>P+(..)\1.*</span>
+    <span style="width: 395px" class=label id=a-3>(E|CR|MN)*</span>
+    <span style="width: 435px" class=label id=a-4>([^MC]|MM|CC)*</span>
+    <span style="width: 475px" class=label id=a-5>[AM]*CM(RC)*R?</span>
+    <span style="width: 505px" class=label id=a-6>.*</span>
+  </toplabelrow>
+  <hexrow>
+    <rowlabel id="c-0" style="width: 250px">.*H.*H.*</rowlabel>
+    <label><hexcol>
+       <input id="hex-0-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-0-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-0-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-0-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-0-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-0-5" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-0-6" value=""></hexcol></label>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-1" style="width: 230px">(DI|NS|TH|OM)*</rowlabel>
+    <label><hexcol><input id="hex-1-0" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-1-6" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-1-7" value=""></hexcol></label>
+    <label120 id=a-7>.*PRR.*DDC.*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-2" style="width: 210px">F.*[AO].*[AO].*</rowlabel>
+    <label><hexcol><input id="hex-2-0" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-2-7" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-2-8" value=""></hexcol></label>
+    <label120 id=a-8>(HHX|[^HX])*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-3" style="width: 190px">(O|RHH|MM)*</rowlabel>
+    <label><hexcol><input id="hex-3-0" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-3-8" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-3-9" value=""></hexcol></label>
+    <label120 id=a-9>([^EMC]|EM)*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-4" style="width: 170px">.*</rowlabel>
+    <label><hexcol><input id="hex-4-0" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-8" value=""></hexcol></label>
+    <label><hexcol><input id="hex-4-9" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-4-10" value=""></hexcol></label>
+    <label120 id=a-10>.*OXR.*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-5" style="width: 150px">C*MC(CCC|MM)*</rowlabel>
+    <label><hexcol><input id="hex-5-0" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-8" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-9" value=""></hexcol></label>
+    <label><hexcol><input id="hex-5-10" value=""></hexcol></label>
+    <label><hexcol class=right><input id="hex-5-11" value=""></hexcol></label>
+    <label120 id=a-11>.*LR.*RL.*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-6" style="width: 130px">[^C]*[^R]*III.*</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-6-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-6-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-8" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-9" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-10" value=""></hexcol></label>
+    <label><hexcol><input id="hex-6-11" value=""></hexcol></label>
+    <label><hexcol class="bottomright right"><input id="hex-6-12" value=""></hexcol></label>
+    <label120 id=a-12>.*SE.*UE.*</label120>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-7" style="width: 150px">(...?)\1*</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-7-0" value="">
+     </hexcol></label>
+    <label><hexcol><input id="hex-7-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-8" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-9" value=""></hexcol></label>
+    <label><hexcol><input id="hex-7-10" value=""></hexcol></label>
+    <label><hexcol class="bottomright right"><input id="hex-7-11" value=""></hexcol></label>
+    <label240b id=b-0>(S|MM|HHH)*</label240b>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-8" style="width: 170px">([^X]|XCC)*</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-8-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-8-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-8" value=""></hexcol></label>
+    <label><hexcol><input id="hex-8-9" value=""></hexcol></label>
+    <label><hexcol class="bottomright right">
+      <input id="hex-8-10" value="">
+    </hexcol></label>
+    <label240b id=b-1>[^M]*M[^M]*</label240b>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-9" style="width: 190px">(RR|HHH)*.?</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-9-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-9-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-7" value=""></hexcol></label>
+    <label><hexcol><input id="hex-9-8" value=""></hexcol></label>
+    <label><hexcol class="bottomright right">
+      <input id="hex-9-9" value="">
+    </hexcol></label>
+    <label240b id=b-2>(RX|[^R])*</label240b>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-10" style="width: 210px">N.*X.X.X.*E</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-10-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-10-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-6" value=""></hexcol></label>
+    <label><hexcol><input id="hex-10-7" value=""></hexcol></label>
+    <label><hexcol class="bottomright right">
+      <input id="hex-10-8" value="">
+    </hexcol></label>
+    <label240b id=b-3>[CEIMU]*OH[AEMOR]*</label240b>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-11" style="width: 230px">R*D*M*</rowlabel>
+    <label><hexcol class=bottomleft>
+      <input id="hex-11-0" value="">
+    </hexcol></label>
+    <label><hexcol><input id="hex-11-1" value=""></hexcol></label>
+    <label><hexcol><input id="hex-11-2" value=""></hexcol></label>
+    <label><hexcol><input id="hex-11-3" value=""></hexcol></label>
+    <label><hexcol><input id="hex-11-4" value=""></hexcol></label>
+    <label><hexcol><input id="hex-11-5" value=""></hexcol></label>
+    <label><hexcol><input id="hex-11-6" value=""></hexcol></label>
+    <label><hexcol class="bottomright right">
+      <input id="hex-11-7" value="">
+    </hexcol></label>
+    <label240b id=b-4>.*(.)C\1X\1.*</label240b>
+  </hexrow>
+  <hexrow>
+    <rowlabel id="c-12" style="width: 250px">.(C|HH)*</rowlabel>
+    <label><hexcol class="bottom left">
+      <input id="hex-12-0" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom">
+      <input id="hex-12-1" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom">
+      <input id="hex-12-2" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom">
+      <input id="hex-12-3" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom">
+      <input id="hex-12-4" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom">
+      <input id="hex-12-5" value="">
+    </hexcol></label>
+    <label><hexcol class="bottom right">
+      <input id="hex-12-6" value="">
+    </hexcol></label>
+    <label240b id=b-5>[^C]*MMM[^C]*</label240b>
+  </hexrow>
+  <bottomlabelrow>
+    <label240a id=b-12 style="width: 269px">.*G.*V.*H.*</label240a id=b->
+    <label240a id=b-11 style="width: 309px">[CR]*</label240a id=b->
+    <label240a id=b-10 style="width: 349px">.*XEXM*</label240a id=b->
+    <label240a id=b-9 style="width: 388px">.*DD.*CCM.*</label240a id=b->
+    <label240a id=b-8 style="width: 428px">.*XHCR.*X.*</label240a id=b->
+    <label240a id=b-7 style="width: 468px">.*(.)(.)(.)(.)\4\3\2\1.*</label240a id=b->
+    <label240a id=b-6 style="width: 508px">.*(IN|SE|HI)</label240a id=b->
+  </bottomlabelrow>
+</hextable>
+
+<div style="height: 100px;"></div>
+
+<h1>Instructions</h1>
+<ul>
+<li>Each regexp is a full match, anchored on both ends.</li>
+<li>Cells can be edited directly.</li>
+<li>If there is a value for every cell in a regexp's path, the regexp will
+turn green or red indicating if it matches or not, respectively.</li>
+<li>A green match does not indicate that the cells' values are correct. Only
+if all regexps are green have you solved the puzzle.</li>
+<li>Using the rotation arrows at the top, you can rotate the puzzle 120 degrees
+in order to view from a different angle. Current inputs will rotate as well.
+</ul>
+
+<p>Puzzle originally part of the
+<a href="http://www.mit.edu/activities/puzzle/2013/">2013 MIT Mystery Puzzle Hunt</a>, created by Dan Gulotta from an idea by Palmer Mubane.
+</p>
+<p>More background at <a href="http://gregable.com/2015/12/regular-expression-crossword-puzzle.html">http://gregable.com/2015/12/regular-expression-crossword-puzzle.html</a>
+</body>

@@ -1,5 +1,5 @@
-# Regex Puzzle
-A webapp for solving a regexp crossword puzzle.
+# Regular Expression Crossword Puzzle
+A webapp for solving a regular expression crossword puzzle.
 
 Puzzle originally part of the 
 [2013 MIT Mystery Puzzle Hunt](http://www.mit.edu/activities/puzzle/2013/)
